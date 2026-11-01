@@ -1,0 +1,21 @@
+{
+  "name": "braindump",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Strukturiert lange Diktate per Knopf über dem Eingabefeld zu einem knappen, fertigen Prompt (nur Haiku).",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "minSentences": {
+      "type": "number",
+      "title": "Ab wie vielen Sätzen",
+      "description": "Ab dieser Satzzahl bietet die Leiste das Strukturieren an.",
+      "default": 2
+    },
+    "glossary": {
+      "type": "string",
+      "title": "Wörterliste",
+      "description": "Eigennamen und Begriffe, durch Komma getrennt (z. B. Claude, Figma, Notion). Werden immer richtig geschrieben.",
+      "default": ""
+    }
+  }
+}
