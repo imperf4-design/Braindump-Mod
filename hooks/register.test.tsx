@@ -42,6 +42,8 @@ test('short dictation reads along, long one offers the button, and Haiku structu
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
     expect(await ui.find({ type: 'Text', text: /Langes Diktat erkannt/ })).toBeDefined()
+    // The band of the mod beneath stays visible under this one.
+    expect(await ui.find({ type: 'Text', text: /engine/ })).toBeDefined()
     await ui.unmount()
   }
 
