@@ -1,0 +1,12 @@
+{
+  "name": "braindump",
+  "owner": { "name": "braindump" },
+  "description": "Braindump: strukturiert lange Diktate zu knappen Prompts.",
+  "plugins": [
+    {
+      "name": "braindump",
+      "source": "./",
+      "description": "Wandelt lange, diktierte Gedankenströme per Knopfdruck in einen knappen, fertigen Prompt um."
+    }
+  ]
+}
