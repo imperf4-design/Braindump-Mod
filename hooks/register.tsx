@@ -70,6 +70,11 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
+    // Draw this row with the other mods' bands beneath it, so none hides another. Claude Code's own
+    // placeholder ({ type: 'engine' }) is never nested: the desktop drops a band that nests it.
+    const drawn = await Promise.resolve(next(e)).catch(() => null)
+    const below = drawn && typeof drawn === 'object' && (drawn as { type?: string }).type !== 'engine' ? drawn : null
+
     const { Box, Button, Text } = $.ui.resolve(e)
 
     const structure = async () => {
@@ -118,9 +123,12 @@ export const register: Register = (on, options) => {
 
     if (await read($, isMinimized)) {
       return (
-        <Box>
-          <Text bold>Braindump </Text>
-          <Button key="expand" label="+" onPress={() => update($, isMinimized, () => false)} />
+        <Box flexDirection="column">
+          <Box>
+            <Text bold>Braindump </Text>
+            <Button key="expand" label="+" onPress={() => update($, isMinimized, () => false)} />
+          </Box>
+          {below}
         </Box>
       )
     }
@@ -137,15 +145,18 @@ export const register: Register = (on, options) => {
               : 'Liest mit …'
 
     return (
-      <Box>
-        <Text bold>Braindump </Text>
-        <Text dimColor>{status} </Text>
-        {current === 'idle' && isLong(text, minSentences) && (
-          <Button key="structure" label="Strukturieren" onPress={structure} />
-        )}
-        {current === 'error' && <Button key="retry" label="Nochmal" onPress={structure} />}
-        {current === 'done' && <Button key="original" label="Original" onPress={restore} />}
-        <Button key="minimize" label="–" onPress={() => update($, isMinimized, () => true)} />
+      <Box flexDirection="column">
+        <Box>
+          <Text bold>Braindump </Text>
+          <Text dimColor>{status} </Text>
+          {current === 'idle' && isLong(text, minSentences) && (
+            <Button key="structure" label="Strukturieren" onPress={structure} />
+          )}
+          {current === 'error' && <Button key="retry" label="Nochmal" onPress={structure} />}
+          {current === 'done' && <Button key="original" label="Original" onPress={restore} />}
+          <Button key="minimize" label="–" onPress={() => update($, isMinimized, () => true)} />
+        </Box>
+        {below}
       </Box>
     )
   })
