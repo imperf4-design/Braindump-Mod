@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface as Engine, Register } from 'claude-code'
 
 import type { Phase } from '../types'
 
@@ -35,24 +35,41 @@ const isLong = (text: string, minSentences: number) => {
   return sentences >= minSentences || words(text) >= minSentences * 12
 }
 
+let seen = ''
+
+// The box's text as the mod last saw it. Typing raises `prompt.edit`, not `prompt.change`, and the
+// desktop composer may raise neither, so the render hook also polls the box.
+async function track($: Engine, text: string, isOwn = false) {
+  if (text === seen) return
+  seen = text
+  await update($, draft, () => text)
+
+  if (isOwn) return
+  if (text.trim() === '') {
+    await update($, phase, () => 'idle' as Phase)
+    await update($, original, () => '')
+  } else if ((await read($, phase)) === 'error') {
+    await update($, phase, () => 'idle' as Phase)
+  }
+}
+
 export const register: Register = (on, options) => {
   const minSentences = Math.max(1, Number(options.minSentences) || 2)
   const glossary = String(options.glossary ?? '').trim()
 
-  on('prompt.change', async ($, e, next) => {
-    const isOwn = e.origin.kind === 'plugin' && e.origin.name === 'braindump'
-    await update($, draft, () => e.text)
+  let stopWatching: (() => void) | undefined
 
-    if (!isOwn) {
-      if (e.text.trim() === '') {
-        await update($, phase, () => 'idle' as Phase)
-        await update($, original, () => '')
-      } else if ((await read($, phase)) === 'error') {
-        await update($, phase, () => 'idle' as Phase)
-      }
-    }
+  on('prompt.change', async ($, e, next) => {
+    await track($, e.text, e.origin.kind === 'plugin' && e.origin.name === 'braindump')
 
     return next(e)
+  })
+
+  on('prompt.edit', async ($, e, next) => {
+    const result = await next(e)
+    await track($, (result as { text?: string }).text ?? '')
+
+    return result
   })
 
   on('prompt.submit', async ($, e, next) => {
@@ -63,10 +80,21 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (stopWatching === undefined) {
+      try {
+        stopWatching = $.clock.every(1000, async () => {
+          const box = await $.prompt.read()
+          await track($, box.text)
+        })
+      } catch {
+        stopWatching = () => {}
+      }
+    }
+
     const text = await read($, draft)
     const current = await read($, phase)
 
-    if (e.props.hasSurvey || text.trim() === '') {
+    if (e.props.hasSurvey) {
       return next(e)
     }
 
@@ -82,7 +110,10 @@ export const register: Register = (on, options) => {
 
       const box = await $.prompt.read()
       const raw = box.text.trim()
-      if (raw === '') return
+      if (raw === '') {
+        $.ui.toast('Das Eingabefeld ist leer')
+        return
+      }
 
       await update($, original, () => raw)
       await update($, phase, () => 'working' as Phase)
@@ -142,16 +173,16 @@ export const register: Register = (on, options) => {
             ? 'Strukturieren fehlgeschlagen'
             : isLong(text, minSentences)
               ? 'Langes Diktat erkannt'
-              : 'Liest mit …'
+              : text.trim() === ''
+                ? 'Bereit'
+                : 'Liest mit …'
 
     return (
       <Box flexDirection="column">
         <Box>
           <Text bold>Braindump </Text>
           <Text dimColor>{status} </Text>
-          {current === 'idle' && isLong(text, minSentences) && (
-            <Button key="structure" label="Strukturieren" onPress={structure} />
-          )}
+          {current === 'idle' && <Button key="structure" label="Strukturieren" onPress={structure} />}
           {current === 'error' && <Button key="retry" label="Nochmal" onPress={structure} />}
           {current === 'done' && <Button key="original" label="Original" onPress={restore} />}
           <Button key="minimize" label="–" onPress={() => update($, isMinimized, () => true)} />
