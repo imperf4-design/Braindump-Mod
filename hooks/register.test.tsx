@@ -30,7 +30,7 @@ test('short dictation reads along, long one offers the button, and Haiku structu
   })
 
   const empty = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await empty.find({ type: 'Text', text: /Braindump/ })).toBeUndefined()
+  expect(await empty.find({ type: 'Text', text: /Bereit/ })).toBeDefined()
   await empty.unmount()
 
   await $.prompt.change({ text: 'Mach mal.', cursor: 9, origin: { kind: 'engine' } })
